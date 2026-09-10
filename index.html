@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ELEKEN — Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+  :root{
+    --bg:#0D1116;
+    --panel:#151B22;
+    --panel-2:#1B222B;
+    --line:#262F3A;
+    --text:#E7ECF2;
+    --muted:#8492A3;
+    --muted-2:#5A6779;
+    --revenue:#5FB88C;
+    --cost:#D6A544;
+    --margin:#6FA8DC;
+    --bad:#C96A5B;
+    --good:#5FB88C;
+    --sidebar-w:236px;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Manrope',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .app{ display:flex; min-height:100vh; }
+
+  /* ---------------- Sidebar ---------------- */
+  .sidebar{
+    width:var(--sidebar-w);
+    flex:none;
+    background:var(--panel);
+    border-right:1px solid var(--line);
+    padding:26px 16px;
+    position:sticky;
+    top:0;
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+  .brand{
+    padding:0 10px 22px;
+    margin-bottom:14px;
+    border-bottom:1px solid var(--line);
+  }
+  .brand .name{
+    font-family:'Newsreader',serif;
+    font-size:20px;
+    font-weight:500;
+    letter-spacing:-0.01em;
+  }
+  .brand .sub{
+    color:var(--muted);
+    font-size:12px;
+    margin-top:3px;
+  }
+  .side-nav{ display:flex; flex-direction:column; gap:2px; }
+  .side-nav button{
+    display:flex;
+    align-items:center;
+    gap:11px;
+    background:none;
+    border:none;
+    color:var(--muted);
+    font-family:'Manrope',sans-serif;
+    font-size:14px;
+    font-weight:600;
+    text-align:left;
+    padding:11px 10px;
+    cursor:pointer;
+    border-radius:2px;
+    transition:background .15s ease, color .15s ease;
+  }
+  .side-nav button:hover{ color:var(--text); background:var(--panel-2); }
+  .side-nav button.active{ color:var(--text); background:var(--panel-2); }
+  .side-nav button.active svg{ color:var(--revenue); }
+  .side-nav button svg{ width:16px; height:16px; flex:none; color:var(--muted-2); }
+  .side-nav button.active svg{ color:var(--revenue); }
+  .side-nav .badge{
+    margin-left:auto;
+    font-size:10px;
+    font-weight:700;
+    color:var(--muted-2);
+    background:var(--bg);
+    border:1px solid var(--line);
+    padding:2px 6px;
+    border-radius:20px;
+    letter-spacing:.03em;
+  }
+
+  /* ---------------- Main ---------------- */
+  .main{ flex:1; min-width:0; }
+  .wrap{max-width:1180px;margin:0 auto;padding:40px 28px 80px;}
+  .app-section{ display:none; }
+  .app-section.active{ display:block; }
+
+  header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    gap:16px;
+    border-bottom:1px solid var(--line);
+    padding-bottom:24px;
+    margin-bottom:24px;
+  }
+  header .title-block h1{
+    font-family:'Newsreader',serif;
+    font-weight:500;
+    font-size:30px;
+    margin:0 0 6px;
+    letter-spacing:-0.01em;
+  }
+  header .title-block p{
+    margin:0;
+    color:var(--muted);
+    font-size:14px;
+  }
+  .meta-block{
+    display:flex;
+    align-items:flex-end;
+    gap:16px;
+  }
+  .meta{
+    text-align:right;
+    color:var(--muted-2);
+    font-size:12.5px;
+    line-height:1.6;
+  }
+  .meta .status{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+  }
+  .meta .dot{width:7px;height:7px;border-radius:50%;background:var(--muted-2);}
+  .meta .dot.live{background:var(--good);}
+  .meta .dot.stale{background:var(--bad);}
+
+  .update-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--text);
+    font-family:'Manrope',sans-serif;
+    font-size:13px;
+    font-weight:600;
+    padding:9px 16px;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:border-color .15s ease, opacity .15s ease;
+  }
+  .update-btn:hover{border-color:var(--revenue);}
+  .update-btn:disabled{opacity:.55; cursor:default;}
+  .update-btn svg{width:13px;height:13px;flex:none;}
+  .update-btn svg.spin{animation:spin .8s linear infinite;}
+  @keyframes spin{ to { transform:rotate(360deg); } }
+
+  /* period selector */
+  .period-row{
+    display:flex;
+    justify-content:flex-end;
+    align-items:center;
+    gap:10px;
+    margin-bottom:8px;
+  }
+  .period-selector{
+    display:inline-flex;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    padding:3px;
+    gap:2px;
+  }
+  .period-selector button{
+    background:none;
+    border:none;
+    color:var(--muted);
+    font-family:'Manrope',sans-serif;
+    font-size:13px;
+    font-weight:600;
+    padding:7px 16px;
+    cursor:pointer;
+    transition:all .15s ease;
+  }
+  .period-selector button.active{
+    background:var(--revenue);
+    color:#0B1712;
+  }
+  .period-value{
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--text);
+    font-family:'Manrope',sans-serif;
+    font-size:13px;
+    font-weight:600;
+    padding:9px 14px;
+    cursor:pointer;
+    min-width:130px;
+    -webkit-appearance:none;
+    appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238492A3'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position:right 14px center;
+    padding-right:32px;
+  }
+  .period-value:focus{outline:1px solid var(--revenue);}
+
+  .fetch-note{
+    text-align:right;
+    color:var(--bad);
+    font-size:11.5px;
+    margin-bottom:16px;
+    min-height:14px;
+  }
+
+  /* KPI row */
+  .kpis{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    margin-bottom:36px;
+  }
+  .kpi{
+    background:var(--panel);
+    padding:22px 22px;
+  }
+  .kpi .label{
+    font-size:12px;
+    color:var(--muted);
+    margin-bottom:10px;
+  }
+  .kpi .value{
+    font-family:'Newsreader',serif;
+    font-size:30px;
+    font-weight:500;
+    letter-spacing:-0.01em;
+  }
+  .kpi .delta{
+    margin-top:8px;
+    font-size:12.5px;
+  }
+  .delta.up{color:var(--good);}
+  .delta.down{color:var(--bad);}
+  .delta.flat{color:var(--muted);}
+
+  /* tabs */
+  nav.tabs{
+    display:flex;
+    gap:4px;
+    margin-bottom:24px;
+    border-bottom:1px solid var(--line);
+    overflow-x:auto;
+  }
+  nav.tabs button{
+    background:none;
+    border:none;
+    color:var(--muted);
+    font-family:'Manrope',sans-serif;
+    font-size:14px;
+    font-weight:600;
+    padding:12px 18px;
+    cursor:pointer;
+    white-space:nowrap;
+    border-bottom:2px solid transparent;
+    transition:color .15s ease, border-color .15s ease;
+  }
+  nav.tabs button:hover{color:var(--text);}
+  nav.tabs button.active{
+    color:var(--text);
+    border-bottom:2px solid var(--revenue);
+  }
+
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    padding:24px 24px 12px;
+    margin-bottom:20px;
+  }
+  .panel h2{
+    font-family:'Newsreader',serif;
+    font-weight:500;
+    font-size:19px;
+    margin:0 0 4px;
+  }
+  .panel .sub{
+    color:var(--muted);
+    font-size:13px;
+    margin:0 0 18px;
+  }
+  .chart-box{position:relative;height:340px;}
+  .chart-box.tall{height:400px;}
+
+  .grid-2{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:20px;
+  }
+  @media (max-width:820px){
+    .grid-2{grid-template-columns:1fr;}
+    .kpis{grid-template-columns:1fr 1fr;}
+  }
+  .grid-2 .panel .chart-box{height:230px;}
+
+  .cat-selector{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-bottom:18px;
+  }
+  .cat-selector button{
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--muted);
+    font-family:'Manrope',sans-serif;
+    font-size:12.5px;
+    font-weight:600;
+    padding:7px 14px;
+    cursor:pointer;
+    transition:all .15s ease;
+  }
+  .cat-selector button.active{
+    background:var(--cost);
+    color:#1B1404;
+    border-color:var(--cost);
+  }
+
+  .note{
+    color:var(--muted-2);
+    font-size:12px;
+    margin-top:18px;
+    padding-top:14px;
+    border-top:1px solid var(--line);
+  }
+
+  .breakdown-table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:14px;
+    margin-bottom:8px;
+  }
+  .breakdown-table th{
+    text-align:left;
+    color:var(--muted);
+    font-size:11.5px;
+    font-weight:600;
+    padding:8px 4px 10px;
+    border-bottom:1px solid var(--line);
+  }
+  .breakdown-table th:nth-child(2),
+  .breakdown-table th:nth-child(3){text-align:right;}
+  .breakdown-table td{
+    padding:11px 4px;
+    border-bottom:1px solid var(--line);
+    vertical-align:middle;
+  }
+  .breakdown-table td:nth-child(2),
+  .breakdown-table td:nth-child(3){text-align:right; font-variant-numeric:tabular-nums;}
+  .breakdown-table .cat-name{display:flex; align-items:center; gap:9px;}
+  .breakdown-table .dot{width:9px;height:9px;border-radius:2px;flex:none;}
+  .breakdown-table .bar-cell{width:140px;}
+  .breakdown-table .bar-track{background:var(--panel-2); height:6px; width:100%; overflow:hidden;}
+  .breakdown-table .bar-fill{height:100%;}
+  .breakdown-table tfoot td{
+    border-bottom:none;
+    border-top:1px solid var(--line);
+    font-weight:700;
+    font-family:'Newsreader',serif;
+    font-size:16px;
+    padding-top:14px;
+  }
+
+  footer{
+    margin-top:40px;
+    color:var(--muted-2);
+    font-size:12px;
+    text-align:center;
+  }
+
+  /* ---------------- Empty-state placeholder sections ---------------- */
+  .empty-state{
+    background:var(--panel);
+    border:1px dashed var(--line);
+    padding:64px 40px;
+    text-align:center;
+  }
+  .empty-state .icon{
+    width:40px; height:40px;
+    margin:0 auto 20px;
+    color:var(--muted-2);
+  }
+  .empty-state h2{
+    font-family:'Newsreader',serif;
+    font-weight:500;
+    font-size:22px;
+    margin:0 0 10px;
+  }
+  .empty-state p{
+    color:var(--muted);
+    font-size:14px;
+    line-height:1.6;
+    max-width:440px;
+    margin:0 auto;
+  }
+
+  /* update modal */
+  .modal-backdrop{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(6,8,11,0.7);
+    align-items:center;
+    justify-content:center;
+    z-index:50;
+    padding:20px;
+  }
+  .modal-backdrop.open{display:flex;}
+  .modal{
+    background:var(--panel);
+    border:1px solid var(--line);
+    max-width:440px;
+    width:100%;
+    padding:28px;
+  }
+  .modal h3{
+    font-family:'Newsreader',serif;
+    font-weight:500;
+    font-size:21px;
+    margin:0 0 14px;
+  }
+  .modal p{
+    color:var(--muted);
+    font-size:13.5px;
+    line-height:1.65;
+    margin:0 0 14px;
+  }
+  .modal .snapshot-tag{
+    display:inline-block;
+    border:1px solid var(--line);
+    color:var(--text);
+    font-size:12px;
+    padding:5px 10px;
+    margin-bottom:18px;
+  }
+  .modal .snapshot-tag.live{border-color:var(--good); color:var(--good);}
+  .modal .snapshot-tag.stale{border-color:var(--bad); color:var(--bad);}
+  .modal .modal-actions{
+    display:flex;
+    justify-content:flex-end;
+    margin-top:6px;
+  }
+  .modal .modal-close{
+    background:var(--revenue);
+    border:none;
+    color:#0B1712;
+    font-family:'Manrope',sans-serif;
+    font-size:13px;
+    font-weight:700;
+    padding:9px 18px;
+    cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="name">ELEKEN</div>
+      <div class="sub">Operations Dashboard</div>
+    </div>
+    <nav class="side-nav" id="sideNav">
+      <button data-section="financial" class="active">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 17V9M9.5 17V4M16 17v-6"/></svg>
+        Financial Metrics
+      </button>
+      <button data-section="projects">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="14" height="12" rx="1.5"/><path d="M3 8h14"/></svg>
+        Projects
+        <span class="badge">SOON</span>
+      </button>
+      <button data-section="designers">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="7" r="3"/><path d="M4 17c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
+        Designer Utilization
+        <span class="badge">SOON</span>
+      </button>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <div class="wrap">
+
+      <!-- ============================================================ -->
+      <!-- SECTION: Financial Metrics                                    -->
+      <!-- ============================================================ -->
+      <section class="app-section active" id="section-financial">
+
+        <header>
+          <div class="title-block">
+            <h1>Financial Metrics</h1>
+            <p>Revenue, expenses and margin, 2024–2026</p>
+          </div>
+          <div class="meta-block">
+            <div class="meta">
+              Source: PL_ELEKEN_2024_2025_2026<br>
+              <span class="status" id="statusLine"><span class="dot" id="statusDot"></span><span id="statusText">Loading…</span></span>
+            </div>
+            <button class="update-btn" id="updateBtn">
+              <svg id="updateIcon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2.5v3.5H10"/></svg>
+              Update data
+            </button>
+          </div>
+        </header>
+
+        <div class="period-row">
+          <div class="period-selector" id="periodSelector">
+            <button data-period="month" class="active">Month</button>
+            <button data-period="quarter">Quarter</button>
+            <button data-period="year">Year</button>
+          </div>
+          <select class="period-value" id="periodValue"></select>
+        </div>
+        <div class="fetch-note" id="fetchNote"></div>
+
+        <div class="kpis" id="kpiRow"></div>
+
+        <nav class="tabs" id="tabs">
+          <button data-view="overview" class="active">Overview</button>
+          <button data-view="margin">Margin</button>
+          <button data-view="profit">Profit</button>
+          <button data-view="expenses">Expenses by Category</button>
+          <button data-view="structure">Expense Structure</button>
+        </nav>
+
+        <div class="view active" id="view-overview">
+          <div class="panel">
+            <h2>Revenue vs Total Expenses</h2>
+            <p class="sub" id="subOverview">COGS + Marketing + Sales + Outbound Sales + Finance + HR + Other admin, $</p>
+            <div class="chart-box tall"><canvas id="chartOverview"></canvas></div>
+            <div class="note">The gap between the two lines started widening sharply from March 2026 — revenue is outpacing expenses for the first time in the whole period.</div>
+          </div>
+        </div>
+
+        <div class="view" id="view-margin">
+          <div class="panel">
+            <h2>Margin (Net Income Margin, %)</h2>
+            <p class="sub" id="subMargin">Net income as % of revenue</p>
+            <div class="chart-box tall"><canvas id="chartMargin"></canvas></div>
+            <div class="note">2026 is the strongest year for margin: 42–45% in May, June and September, versus an average of 20–25% in 2024–2025.</div>
+          </div>
+        </div>
+
+        <div class="view" id="view-profit">
+          <div class="panel">
+            <h2>Net Income, $</h2>
+            <p class="sub" id="subProfit">Net income</p>
+            <div class="chart-box tall"><canvas id="chartProfit"></canvas></div>
+            <div class="note">Record high — $157K in June 2026, nearly double any single month in 2024–2025.</div>
+          </div>
+        </div>
+
+        <div class="view" id="view-expenses">
+          <div class="panel">
+            <h2>Expenses by Category</h2>
+            <p class="sub">Pick a category to see it on its own, or view all six at once below</p>
+            <div class="cat-selector" id="catSelector"></div>
+            <div class="chart-box tall"><canvas id="chartExpenseSingle"></canvas></div>
+          </div>
+
+          <div class="grid-2" id="expenseGrid"></div>
+        </div>
+
+        <div class="view" id="view-structure">
+          <div class="panel">
+            <h2>Expense Structure by Period</h2>
+            <p class="sub" id="subStructure">COGS and operating categories, stacked, $</p>
+            <div class="chart-box tall"><canvas id="chartStructure"></canvas></div>
+          </div>
+
+          <div class="panel">
+            <h2>Breakdown for the Selected Period</h2>
+            <p class="sub" id="subBreakdown">Pick a period from the list above</p>
+            <table class="breakdown-table" id="breakdownTable">
+              <thead>
+                <tr><th>Category</th><th>Amount, $</th><th>% of expenses</th><th></th></tr>
+              </thead>
+              <tbody id="breakdownBody"></tbody>
+              <tfoot id="breakdownFoot"></tfoot>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- SECTION: Projects (placeholder)                                -->
+      <!-- ============================================================ -->
+      <section class="app-section" id="section-projects">
+        <header>
+          <div class="title-block">
+            <h1>Projects</h1>
+            <p>Active projects and revenue per project, 2024–2026</p>
+          </div>
+        </header>
+        <div class="kpis" id="projectKpiRow"></div>
+        <div class="panel">
+          <h2>Active Project Count</h2>
+          <p class="sub">Number of active projects per month</p>
+          <div class="chart-box tall"><canvas id="chartProjectCount"></canvas></div>
+          <div class="note">Project count roughly doubled from ~30 in early 2024 to a peak of 61 in June 2026, tracking the growth in design team size.</div>
+        </div>
+        <div class="panel">
+          <h2>Revenue per Project, $</h2>
+          <p class="sub">Average monthly revenue per active project</p>
+          <div class="chart-box tall"><canvas id="chartRevPerProject"></canvas></div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- SECTION: Designer Utilization (placeholder)                   -->
+      <!-- ============================================================ -->
+      <section class="app-section" id="section-designers">
+        <header>
+          <div class="title-block">
+            <h1>Designer Utilization</h1>
+            <p>Team capacity, utilization rate and workload, 2024–2026</p>
+          </div>
+        </header>
+        <div class="kpis" id="designerKpiRow"></div>
+        <div class="panel">
+          <h2>Design Team Size &amp; Contract Mix</h2>
+          <p class="sub">Total design team vs. full-time / part-time headcount</p>
+          <div class="chart-box tall"><canvas id="chartTeamMix"></canvas></div>
+          <div class="note">Team grew from 37 in Jan 2024 to a peak of 72 in Mar 2026, with part-time headcount growing faster than full-time — a flexible-capacity strategy.</div>
+        </div>
+        <div class="panel">
+          <h2>Designer Utilization, %</h2>
+          <p class="sub">Billable capacity utilization per month</p>
+          <div class="chart-box tall"><canvas id="chartUtilization"></canvas></div>
+        </div>
+        <div class="panel">
+          <h2>Revenue per Designer, $</h2>
+          <p class="sub">Average monthly revenue generated per designer</p>
+          <div class="chart-box tall"><canvas id="chartRevPerDesigner"></canvas></div>
+        </div>
+      </section>
+
+      <footer>ELEKEN · Operations dashboard</footer>
+    </div>
+  </main>
+</div>
+
+<div class="modal-backdrop" id="updateModal">
+  <div class="modal">
+    <h3>Data status</h3>
+    <div class="snapshot-tag" id="modalTag">—</div>
+    <p id="modalBody">—</p>
+    <p>If the connection keeps failing, make sure the Google Sheet is shared as "Anyone with the link — Viewer", then press Update data again.</p>
+    <div class="modal-actions">
+      <button class="modal-close" id="closeModal">Got it</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================================================================
+// Sidebar navigation
+// ==================================================================
+document.querySelectorAll('#sideNav button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#sideNav button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.app-section').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('section-'+btn.dataset.section).classList.add('active');
+  });
+});
+
+// ==================================================================
+// Live data source
+// ==================================================================
+const SHEET_ID = '1lka_Y20sFi9g6i4YOvfrOLmD40GVLc8XOLkWVHVO7lg';
+const SHEET_GID = '323218510'; // PL_ELEKEN_2024_2025_2026
+
+// Canonical column order used by the sheet: Jan 2024 -> Dec 2026 (36 months)
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function buildFullMonthKeys(){
+  const keys = [];
+  for(const yy of [24,25,26]){
+    for(let m=1; m<=12; m++){
+      keys.push(String(m).padStart(2,'0') + '.' + yy);
+    }
+  }
+  return keys;
+}
+const FULL_MONTH_KEYS = buildFullMonthKeys(); // 36 entries
+
+// ---- Fallback snapshot (used if the live sheet can't be reached) ----
+const FALLBACK_LEN = 33; // Jan 2024 -> Sep 2026
+const fallback = {
+  revenue: [145595,148086,136476,157664,140222,140772,173923,166937,177678,186419,171097,161601,
+    136260,183330,218227,235431,214186,197390,204979,202231,205667,261594,231932,234520,
+    235357,269656,313478,313193,308297,350968,305112,277972,305542],
+  netIncome: [49542,31782,33645,45633,32730,39674,56442,48816,54375,56530,48901,33870,
+    -3060,34136,67572,75817,52513,34509,45306,35763,39352,78739,21898,26290,
+    28632,67221,111311,114413,128384,157123,107947,94964,136831],
+  cogs: [54609,58124,55643,59911,56424,58015,65358,63775,65474,65968,68993,68377,
+    76189,81162,83561,81887,82515,87951,84678,89640,87879,93840,108834,97448,
+    108935,115629,113241,112973,112841,117660,109890,107785,108583],
+  expenseCategories: {
+    "Marketing": [16013,24506,15676,16952,16415,14664,14262,14956,14017,14139,14799,14722,17444,17376,16308,18245,16737,17785,18362,17659,18905,19438,19987,19339,31561,24876,24775,28734,26377,42335,25941,36353,21504],
+    "Sales": [5278,11803,5412,12658,5287,4999,9759,7028,8807,7688,8400,11545,6882,13462,12732,7387,9556,17544,8340,15617,5556,12548,13622,9009,12842,9537,9542,15158,9585,9597,14847,10300,9430],
+    "Outbound Sales": [12791,13851,13606,14186,14188,13985,14463,15776,17448,17852,19208,19216,21573,21595,22433,21646,21234,21542,24758,24394,23192,26264,26971,26542,28260,28500,32060,21689,8696,5180,6132,5884,5941],
+    "Finance": [1954,2066,1968,1930,1932,2147,2168,5491,2200,2172,2569,2269,2512,2512,2550,3256,2700,2736,2736,2761,8576,5844,7192,5676,4253,4231,4176,4220,4199,4210,4530,4575,4540],
+    "HR": [2583,1750,3869,1815,3701,5041,4240,3623,9292,5244,4375,7002,7687,5579,6331,12962,10683,6950,10254,7986,11532,9477,14544,17290,15302,12730,11720,10485,10218,9508,15177,10584,10278],
+    "Other admin": [2826,4204,4873,4578,8382,2247,4171,4841,3683,3911,3852,3632,5739,6409,5548,12023,13576,8365,10225,7384,7587,12984,18350,5977,5626,4869,5106,5914,7957,6434,11687,6368,7725]
+  }
+};
+
+// ---- Mutable "live" state, active dataset the whole app renders from ----
+let monthKeys = FULL_MONTH_KEYS.slice(0, FALLBACK_LEN);
+let revenueRaw = fallback.revenue.slice();
+let netIncomeRaw = fallback.netIncome.slice();
+let cogsRaw = fallback.cogs.slice();
+let expenseCategoriesRaw = JSON.parse(JSON.stringify(fallback.expenseCategories));
+let totalExpensesRaw = [];
+let dataSource = 'fallback'; // 'live' | 'fallback'
+let lastFetchTime = null;
+
+function recomputeTotalExpenses(){
+  totalExpensesRaw = monthKeys.map((_, i) =>
+    cogsRaw[i] + Object.values(expenseCategoriesRaw).reduce((s, arr) => s + arr[i], 0)
+  );
+}
+recomputeTotalExpenses();
+
+// ---- JSONP loader for the Google Visualization API (no CORS issues) ----
+function loadGviz(gid){
+  return new Promise((resolve, reject) => {
+    const cbName = 'gvizCB_' + gid + '_' + Math.floor(Math.random()*1e9);
+    const timeout = setTimeout(() => { cleanup(); reject(new Error('Timed out')); }, 12000);
+    function cleanup(){
+      clearTimeout(timeout);
+      delete window[cbName];
+      if(script.parentNode) script.parentNode.removeChild(script);
+    }
+    window[cbName] = (json) => { cleanup(); resolve(json); };
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?gid=${gid}&tqx=out:json;responseHandler=${cbName}`;
+    const script = document.createElement('script');
+    script.src = url;
+    script.onerror = () => { cleanup(); reject(new Error('Sheet not reachable — check sharing settings')); };
+    document.body.appendChild(script);
+  });
+}
+
+function findRow(rows, label){
+  const target = label.trim().toLowerCase();
+  for(const row of rows){
+    if(!row.c) continue;
+    for(const cell of row.c){
+      if(cell && typeof cell.v === 'string' && cell.v.trim().toLowerCase() === target){
+        return row;
+      }
+    }
+  }
+  return null;
+}
+
+function extractSeries(rows, label, count){
+  const row = findRow(rows, label);
+  if(!row) return null;
+  const idx = row.c.findIndex(c => c && typeof c.v === 'string' && c.v.trim().toLowerCase() === label.trim().toLowerCase());
+  const values = [];
+  for(let i = idx + 1; values.length < count && i < row.c.length; i++){
+    const cell = row.c[i];
+    const v = (cell && typeof cell.v === 'number') ? cell.v : 0;
+    values.push(v);
+  }
+  while(values.length < count) values.push(0);
+  return values;
+}
+
+async function fetchLiveData(){
+  const json = await loadGviz(SHEET_GID);
+  const rows = json.table.rows;
+
+  const series = {
+    revenue: extractSeries(rows, 'Revenue Total', 36),
+    netIncome: extractSeries(rows, 'Net income', 36),
+    cogs: extractSeries(rows, 'COGS', 36),
+    marketing: extractSeries(rows, 'Marketing costs', 36),
+    sales: extractSeries(rows, 'Sales costs', 36),
+    outbound: extractSeries(rows, 'Outbound Sales costs', 36),
+    finance: extractSeries(rows, 'Finance costs', 36),
+    hr: extractSeries(rows, 'HR costs', 36),
+    otherAdmin: extractSeries(rows, 'Other administrative costs', 36)
+  };
+
+  for(const k in series){
+    if(!series[k]) throw new Error(`Could not find the "${k}" row in the sheet`);
+  }
+
+  // Trim trailing months with no revenue yet (unreported future months)
+  let len = 36;
+  while(len > 1 && !series.revenue[len-1]) len--;
+
+  // ---- Projects & Designer Utilization rows (same sheet, graceful if missing) ----
+  function trimmedOrNull(label){
+    const arr = extractSeries(rows, label, 36);
+    if(!arr) return null;
+    let l = 36;
+    while(l > 1 && !arr[l-1]) l--;
+    return arr.slice(0, l);
+  }
+
+  return {
+    monthKeys: FULL_MONTH_KEYS.slice(0, len),
+    revenue: series.revenue.slice(0, len),
+    netIncome: series.netIncome.slice(0, len),
+    cogs: series.cogs.slice(0, len),
+    expenseCategories: {
+      "Marketing": series.marketing.slice(0, len),
+      "Sales": series.sales.slice(0, len),
+      "Outbound Sales": series.outbound.slice(0, len),
+      "Finance": series.finance.slice(0, len),
+      "HR": series.hr.slice(0, len),
+      "Other admin": series.otherAdmin.slice(0, len)
+    },
+    projectDesigner: {
+      projectCount: trimmedOrNull('Project count'),
+      designTeam: trimmedOrNull('Design team'),
+      qttFullTime: trimmedOrNull('QTT full-time'),
+      qttPartTime: trimmedOrNull('QTT part-time'),
+      revPerDesigner: trimmedOrNull('Revenue per designer'),
+      revPerProject: trimmedOrNull('Revenue par project') || trimmedOrNull('Revenue per project'),
+      utilization: trimmedOrNull('Designer Utilization, %')
+    }
+  };
+}
+
+// ==================================================================
+// Aggregation / rendering (operates on the current global series)
+// ==================================================================
+const fmt = n => new Intl.NumberFormat('en-US').format(Math.round(n));
+const fmtK = n => (Math.abs(n) >= 1000) ? (Math.round(n/1000)) + 'K' : fmt(n);
+
+function monthInfo(key){
+  const [mm, yy] = key.split('.').map(Number);
+  return { month: mm, year: yy };
+}
+function monthDisplay(key){
+  const { month, year } = monthInfo(key);
+  return `${MONTH_NAMES[month-1]} '${String(year).padStart(2,'0')}`;
+}
+function quarterKey(key){
+  const { month, year } = monthInfo(key);
+  return `Q${Math.ceil(month/3)} '${String(year).padStart(2,'0')}`;
+}
+function yearKey(key){
+  const { year } = monthInfo(key);
+  return `20${String(year).padStart(2,'0')}`;
+}
+
+function aggregate(period){
+  if(period === 'month'){
+    return {
+      labels: monthKeys.map(monthDisplay),
+      revenue: revenueRaw.slice(),
+      netIncome: netIncomeRaw.slice(),
+      totalExpenses: totalExpensesRaw.slice(),
+      cogs: cogsRaw.slice(),
+      expenseCategories: Object.fromEntries(Object.entries(expenseCategoriesRaw).map(([k,v])=>[k,v.slice()])),
+      yoyOffset: 12
+    };
+  }
+  const keyFn = period === 'quarter' ? quarterKey : yearKey;
+  const labels = [];
+  const idxByKey = {};
+  monthKeys.forEach((m, i) => {
+    const key = keyFn(m);
+    if(!(key in idxByKey)){ idxByKey[key] = []; labels.push(key); }
+    idxByKey[key].push(i);
+  });
+  const sumFor = (arr) => labels.map(key => idxByKey[key].reduce((s,i)=>s+arr[i], 0));
+  const expenseCategories = Object.fromEntries(
+    Object.entries(expenseCategoriesRaw).map(([k,v]) => [k, sumFor(v)])
+  );
+  return {
+    labels,
+    revenue: sumFor(revenueRaw),
+    netIncome: sumFor(netIncomeRaw),
+    totalExpenses: sumFor(totalExpensesRaw),
+    cogs: sumFor(cogsRaw),
+    expenseCategories,
+    yoyOffset: period === 'quarter' ? 4 : 1
+  };
+}
+
+Chart.defaults.font.family = "'Manrope', sans-serif";
+Chart.defaults.color = '#8492A3';
+Chart.defaults.borderColor = '#262F3A';
+
+const gridStyle = { color:'#1E2630', drawTicks:false };
+const tickStyle = { color:'#8492A3', font:{size:11} };
+
+function baseOptions(extra){
+  return Object.assign({
+    responsive:true,
+    maintainAspectRatio:false,
+    interaction:{ mode:'index', intersect:false },
+    plugins:{
+      legend:{ labels:{ color:'#E7ECF2', usePointStyle:true, boxWidth:8, font:{size:12} } },
+      tooltip:{
+        backgroundColor:'#1B222B',
+        borderColor:'#262F3A',
+        borderWidth:1,
+        titleColor:'#E7ECF2',
+        bodyColor:'#C6CEDA',
+        padding:10
+      }
+    },
+    scales:{
+      x:{ grid:gridStyle, ticks:tickStyle },
+      y:{ grid:gridStyle, ticks:tickStyle }
+    }
+  }, extra);
+}
+
+let charts = { overview:null, margin:null, profit:null, single:null, structure:null, mini:[] };
+let currentPeriod = 'month';
+let currentData = aggregate('month');
+let currentCat = Object.keys(expenseCategoriesRaw)[0];
+let selectedIdx = currentData.labels.length - 1;
+
+const periodValueSelect = document.getElementById('periodValue');
+
+function populatePeriodValues(){
+  periodValueSelect.innerHTML = '';
+
+  const allOpt = document.createElement('option');
+  allOpt.value = 'all';
+  allOpt.textContent = 'All time';
+  periodValueSelect.appendChild(allOpt);
+
+  currentData.labels.forEach((lbl, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = lbl;
+    periodValueSelect.appendChild(opt);
+  });
+  selectedIdx = currentData.labels.length - 1;
+  periodValueSelect.value = selectedIdx;
+}
+
+periodValueSelect.addEventListener('change', () => {
+  const v = periodValueSelect.value;
+  selectedIdx = v === 'all' ? 'all' : +v;
+  renderAll();
+});
+
+const periodNoun = { month:'month', quarter:'quarter', year:'year' };
+
+function getStats(idx){
+  const d = currentData;
+  const catNames = Object.keys(expenseCategoriesRaw);
+
+  if(idx === 'all'){
+    const sum = arr => arr.reduce((s,v)=>s+v, 0);
+    const expenseCategories = Object.fromEntries(catNames.map(cat => [cat, sum(d.expenseCategories[cat])]));
+    return {
+      label: `all time (${d.labels[0]} – ${d.labels[d.labels.length-1]})`,
+      revenue: sum(d.revenue),
+      netIncome: sum(d.netIncome),
+      totalExpenses: sum(d.totalExpenses),
+      cogs: sum(d.cogs),
+      expenseCategories,
+      hasYoy: false,
+      yoy: null
+    };
+  }
+
+  const yoyIdx = idx - d.yoyOffset;
+  const hasYoy = yoyIdx >= 0;
+  const expenseCategories = Object.fromEntries(catNames.map(cat => [cat, d.expenseCategories[cat][idx]]));
+  return {
+    label: d.labels[idx],
+    revenue: d.revenue[idx],
+    netIncome: d.netIncome[idx],
+    totalExpenses: d.totalExpenses[idx],
+    cogs: d.cogs[idx],
+    expenseCategories,
+    hasYoy,
+    yoy: hasYoy ? {
+      revenue: d.revenue[yoyIdx],
+      netIncome: d.netIncome[yoyIdx],
+      totalExpenses: d.totalExpenses[yoyIdx],
+      marginPct: d.revenue[yoyIdx] ? (d.netIncome[yoyIdx]/d.revenue[yoyIdx]*100) : null
+    } : null
+  };
+}
+
+function renderKPIs(){
+  const s = getStats(selectedIdx);
+  const marginNow = s.revenue ? (s.netIncome/s.revenue*100) : 0;
+
+  function pctDelta(curr, prev){
+    if(!s.hasYoy || !prev) return { text:'—', cls:'flat' };
+    const p = (curr/prev - 1) * 100;
+    return { text: (p>=0?'+':'') + p.toFixed(0) + '% YoY', cls: p>=0 ? 'up' : 'down' };
+  }
+  function ppDelta(curr, prev){
+    if(!s.hasYoy || prev === null) return { text:'—', cls:'flat' };
+    const p = curr - prev;
+    return { text: (p>=0?'+':'') + p.toFixed(1) + ' pp YoY', cls: p>=0 ? 'up' : 'down' };
+  }
+
+  const revD = pctDelta(s.revenue, s.yoy && s.yoy.revenue);
+  const niD = pctDelta(s.netIncome, s.yoy && s.yoy.netIncome);
+  const exD = pctDelta(s.totalExpenses, s.yoy && s.yoy.totalExpenses);
+  const mgD = ppDelta(marginNow, s.yoy ? s.yoy.marginPct : null);
+
+  const kpis = [
+    { label:`Revenue, ${s.label}`, value:"$"+fmt(s.revenue), delta:revD },
+    { label:`Margin, ${s.label}`, value: marginNow.toFixed(0)+"%", delta:mgD },
+    { label:`Net income, ${s.label}`, value:"$"+fmt(s.netIncome), delta:niD },
+    { label:`Total expenses, ${s.label}`, value:"$"+fmt(s.totalExpenses), delta:exD }
+  ];
+
+  const kpiRow = document.getElementById('kpiRow');
+  kpiRow.innerHTML = '';
+  kpis.forEach(k=>{
+    const el = document.createElement('div');
+    el.className='kpi';
+    el.innerHTML = `<div class="label">${k.label}</div><div class="value">${k.value}</div><div class="delta ${k.delta.cls}">${k.delta.text}</div>`;
+    kpiRow.appendChild(el);
+  });
+}
+
+function destroyCharts(){
+  [charts.overview, charts.margin, charts.profit, charts.single, charts.structure, ...charts.mini].forEach(c => c && c.destroy());
+  charts.mini = [];
+}
+
+function renderOverview(){
+  document.getElementById('subOverview').textContent =
+    `COGS + Marketing + Sales + Outbound Sales + Finance + HR + Other admin, $ per ${periodNoun[currentPeriod]}`;
+  const n = currentData.labels.length;
+  const radii = Array(n).fill(0); if(selectedIdx !== 'all') radii[selectedIdx] = 5;
+  charts.overview = new Chart(document.getElementById('chartOverview'), {
+    type:'line',
+    data:{
+      labels: currentData.labels,
+      datasets:[
+        { label:'Revenue', data:currentData.revenue, borderColor:'#5FB88C', backgroundColor:'#5FB88C22', fill:true, tension:.25, pointRadius:radii, pointBackgroundColor:'#5FB88C', pointBorderColor:'#0D1116', pointBorderWidth:2, borderWidth:2.5 },
+        { label:'Total expenses', data:currentData.totalExpenses, borderColor:'#D6A544', backgroundColor:'#D6A54422', fill:true, tension:.25, pointRadius:radii, pointBackgroundColor:'#D6A544', pointBorderColor:'#0D1116', pointBorderWidth:2, borderWidth:2.5 }
+      ]
+    },
+    options: baseOptions({
+      scales:{
+        x:{ grid:gridStyle, ticks:tickStyle },
+        y:{ grid:gridStyle, ticks:Object.assign({}, tickStyle, { callback:v=>'$'+fmtK(v) }) }
+      }
+    })
+  });
+}
+
+function renderMargin(){
+  document.getElementById('subMargin').textContent = `Net income as % of revenue, per ${periodNoun[currentPeriod]}`;
+  const marginData = currentData.labels.map((_, i) =>
+    currentData.revenue[i] ? +(currentData.netIncome[i]/currentData.revenue[i]*100).toFixed(1) : 0
+  );
+  const n = currentData.labels.length;
+  const radii = Array(n).fill(0); if(selectedIdx !== 'all') radii[selectedIdx] = 5;
+  charts.margin = new Chart(document.getElementById('chartMargin'), {
+    type:'line',
+    data:{
+      labels: currentData.labels,
+      datasets:[{ label:'Margin, %', data:marginData, borderColor:'#6FA8DC', backgroundColor:'#6FA8DC22', fill:true, tension:.3, pointRadius:radii, pointBackgroundColor:'#6FA8DC', pointBorderColor:'#0D1116', pointBorderWidth:2, borderWidth:2.5 }]
+    },
+    options: baseOptions({
+      plugins:{ legend:{display:false}, tooltip:baseOptions().plugins.tooltip },
+      scales:{
+        x:{ grid:gridStyle, ticks:tickStyle },
+        y:{ grid:gridStyle, ticks:Object.assign({}, tickStyle, { callback:v=>v+'%' }) }
+      }
+    })
+  });
+}
+
+function renderProfit(){
+  document.getElementById('subProfit').textContent = `Net income, per ${periodNoun[currentPeriod]}`;
+  const colors = currentData.netIncome.map((v,i) => {
+    const base = v>=0 ? '#5FB88C' : '#C96A5B';
+    return i === selectedIdx ? base : base + 'AA';
+  });
+  charts.profit = new Chart(document.getElementById('chartProfit'), {
+    type:'bar',
+    data:{
+      labels: currentData.labels,
+      datasets:[{
+        label:'Net income',
+        data: currentData.netIncome,
+        backgroundColor: colors,
+        borderColor: currentData.netIncome.map((v,i) => i === selectedIdx ? '#E7ECF2' : 'transparent'),
+        borderWidth: 1.5,
+        borderRadius:2,
+        maxBarThickness:36
+      }]
+    },
+    options: baseOptions({
+      plugins:{ legend:{display:false}, tooltip:baseOptions().plugins.tooltip },
+      scales:{
+        x:{ grid:gridStyle, ticks:tickStyle },
+        y:{ grid:gridStyle, ticks:Object.assign({}, tickStyle, { callback:v=>'$'+fmtK(v) }) }
+      }
+    })
+  });
+}
+
+function renderSingleExpense(){
+  charts.single = new Chart(document.getElementById('chartExpenseSingle'), {
+    type:'bar',
+    data:{
+      labels: currentData.labels,
+      datasets:[{ label:currentCat, data:currentData.expenseCategories[currentCat], backgroundColor:'#D6A544', borderRadius:2, maxBarThickness:36 }]
+    },
+    options: baseOptions({
+      plugins:{ legend:{display:false}, tooltip:baseOptions().plugins.tooltip },
+      scales:{
+        x:{ grid:gridStyle, ticks:tickStyle },
+        y:{ grid:gridStyle, ticks:Object.assign({}, tickStyle, { callback:v=>'$'+fmtK(v) }) }
+      }
+    })
+  });
+}
+
+const palette = ['#D6A544','#C96A5B','#6FA8DC','#5FB88C','#B98FD0','#7FA8A0'];
+const cogsColor = '#7C8FA6';
+
+function renderStructure(){
+  document.getElementById('subStructure').textContent =
+    `COGS and operating categories, stacked, $ per ${periodNoun[currentPeriod]}`;
+
+  const catNames = Object.keys(expenseCategoriesRaw);
+  const datasets = [
+    { label:'COGS', data: currentData.cogs, backgroundColor: cogsColor, stack:'exp' },
+    ...catNames.map((cat,i) => ({
+      label: cat,
+      data: currentData.expenseCategories[cat],
+      backgroundColor: palette[i],
+      stack:'exp'
+    }))
+  ];
+
+  charts.structure = new Chart(document.getElementById('chartStructure'), {
+    type:'bar',
+    data:{ labels: currentData.labels, datasets },
+    options: baseOptions({
+      plugins:{
+        legend:{ position:'bottom', labels:{ color:'#E7ECF2', usePointStyle:true, boxWidth:8, font:{size:11.5} } },
+        tooltip: Object.assign({}, baseOptions().plugins.tooltip, {
+          callbacks:{
+            footer: (items) => {
+              const sum = items.reduce((s,it)=>s+it.parsed.y,0);
+              return 'Total: $' + fmt(sum);
+            }
+          }
+        })
+      },
+      scales:{
+        x:{ grid:gridStyle, ticks:tickStyle, stacked:true },
+        y:{ grid:gridStyle, ticks:Object.assign({}, tickStyle, { callback:v=>'$'+fmtK(v) }), stacked:true }
+      }
+    })
+  });
+
+  renderBreakdownTable();
+}
+
+function renderBreakdownTable(){
+  const s = getStats(selectedIdx);
+  const catNames = Object.keys(expenseCategoriesRaw);
+  document.getElementById('subBreakdown').textContent = `Period: ${s.label}`;
+
+  const rows = [
+    { name:'COGS', value: s.cogs, color: cogsColor },
+    ...catNames.map((cat,i) => ({ name:cat, value: s.expenseCategories[cat], color: palette[i] }))
+  ].sort((a,b) => b.value - a.value);
+
+  const total = s.totalExpenses || 1;
+
+  const body = document.getElementById('breakdownBody');
+  body.innerHTML = rows.map(r => {
+    const pct = (r.value/total*100);
+    return `<tr>
+      <td><div class="cat-name"><span class="dot" style="background:${r.color}"></span>${r.name}</div></td>
+      <td>$${fmt(r.value)}</td>
+      <td>${pct.toFixed(1)}%</td>
+      <td class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:${pct.toFixed(1)}%;background:${r.color}"></div></div></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('breakdownFoot').innerHTML =
+    `<tr><td>Total expenses</td><td>$${fmt(s.totalExpenses)}</td><td>100%</td><td></td></tr>`;
+}
+
+function renderMiniGrid(){
+  const grid = document.getElementById('expenseGrid');
+  grid.innerHTML = '';
+  Object.keys(expenseCategoriesRaw).forEach((cat,i)=>{
+    const panel = document.createElement('div');
+    panel.className='panel';
+    panel.innerHTML = `<h2 style="font-size:15px">${cat}</h2><div class="chart-box"><canvas id="mini-${i}"></canvas></div>`;
+    grid.appendChild(panel);
+    const c = new Chart(document.getElementById('mini-'+i), {
+      type:'bar',
+      data:{ labels: currentData.labels, datasets:[{ data:currentData.expenseCategories[cat], backgroundColor:palette[i], borderRadius:1, maxBarThickness:16 }] },
+      options: baseOptions({
+        plugins:{ legend:{display:false}, tooltip:baseOptions().plugins.tooltip },
+        scales:{
+          x:{ grid:{display:false}, ticks:{display:false} },
+          y:{ grid:gridStyle, ticks:Object.assign({}, tickStyle, { callback:v=>fmtK(v), font:{size:10} }) }
+        }
+      })
+    });
+    charts.mini.push(c);
+  });
+}
+
+function renderAll(){
+  destroyCharts();
+  renderKPIs();
+  renderOverview();
+  renderMargin();
+  renderProfit();
+  renderSingleExpense();
+  renderMiniGrid();
+  renderStructure();
+}
+
+// ---- category selector (built once, rebuilt if category set changes) ----
+const catSelector = document.getElementById('catSelector');
+function renderCatSelector(){
+  catSelector.innerHTML = '';
+  Object.keys(expenseCategoriesRaw).forEach((cat)=>{
+    const b = document.createElement('button');
+    b.textContent = cat;
+    if(cat === currentCat) b.classList.add('active');
+    b.addEventListener('click', ()=>{
+      document.querySelectorAll('.cat-selector button').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      currentCat = cat;
+      if(charts.single) charts.single.destroy();
+      renderSingleExpense();
+    });
+    catSelector.appendChild(b);
+  });
+}
+renderCatSelector();
+
+// ---- period selector ----
+document.querySelectorAll('#periodSelector button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#periodSelector button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentPeriod = btn.dataset.period;
+    currentData = aggregate(currentPeriod);
+    populatePeriodValues();
+    renderAll();
+  });
+});
+
+// ---- view tabs (within Financial Metrics section) ----
+document.querySelectorAll('nav.tabs button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+  });
+});
+
+// ==================================================================
+// Update data button + status line + modal
+// ==================================================================
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+const fetchNote = document.getElementById('fetchNote');
+const updateBtn = document.getElementById('updateBtn');
+const updateIcon = document.getElementById('updateIcon');
+const updateModal = document.getElementById('updateModal');
+const modalTag = document.getElementById('modalTag');
+const modalBody = document.getElementById('modalBody');
+
+function fmtTime(d){
+  return d.toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+function setStatus(){
+  statusDot.className = 'dot ' + (dataSource === 'live' ? 'live' : 'stale');
+  if(dataSource === 'live'){
+    statusText.textContent = `Live · updated ${fmtTime(lastFetchTime)}`;
+  } else {
+    statusText.textContent = `Cached snapshot${lastFetchTime ? ' · attempted ' + fmtTime(lastFetchTime) : ''}`;
+  }
+}
+
+async function refreshData(showModal){
+  updateBtn.disabled = true;
+  updateIcon.classList.add('spin');
+  fetchNote.textContent = '';
+  try{
+    const live = await fetchLiveData();
+    monthKeys = live.monthKeys;
+    revenueRaw = live.revenue;
+    netIncomeRaw = live.netIncome;
+    cogsRaw = live.cogs;
+    expenseCategoriesRaw = live.expenseCategories;
+    recomputeTotalExpenses();
+    dataSource = 'live';
+    lastFetchTime = new Date();
+
+    currentData = aggregate(currentPeriod);
+    if(!Object.keys(expenseCategoriesRaw).includes(currentCat)) currentCat = Object.keys(expenseCategoriesRaw)[0];
+    renderCatSelector();
+    populatePeriodValues();
+    renderAll();
+    setStatus();
+
+    // Projects & Designer Utilization — update only the series that were found;
+    // keep the existing (cached) values for anything not found this time.
+    const pd = live.projectDesigner || {};
+    if(pd.projectCount)  projectCountRaw   = pd.projectCount;
+    if(pd.designTeam)    designTeamRaw     = pd.designTeam;
+    if(pd.qttFullTime)   qttFullTimeRaw    = pd.qttFullTime;
+    if(pd.qttPartTime)   qttPartTimeRaw    = pd.qttPartTime;
+    if(pd.revPerDesigner) revPerDesignerRaw = pd.revPerDesigner;
+    if(pd.revPerProject)  revPerProjectRaw  = pd.revPerProject;
+    if(pd.utilization)    utilizationRaw    = pd.utilization;
+    if(typeof renderProjectsSection === 'function'){
+      renderProjectsSection();
+      renderDesignersSection();
+    }
+
+    if(showModal){
+      modalTag.textContent = 'Connected';
+      modalTag.className = 'snapshot-tag live';
+      modalBody.textContent = `Pulled the latest numbers straight from the Google Sheet (through ${monthDisplay(monthKeys[monthKeys.length-1])}).`;
+    }
+  } catch(err){
+    lastFetchTime = new Date();
+    setStatus();
+    fetchNote.textContent = 'Could not reach the live sheet — showing the last available data.';
+    if(showModal){
+      modalTag.textContent = 'Connection failed';
+      modalTag.className = 'snapshot-tag stale';
+      modalBody.textContent = `${err.message}. Showing the last data this page could load.`;
+    }
+  } finally {
+    updateBtn.disabled = false;
+    updateIcon.classList.remove('spin');
+  }
+}
+
+updateBtn.addEventListener('click', () => {
+  refreshData(true).then(() => updateModal.classList.add('open'));
+});
+document.getElementById('closeModal').addEventListener('click', () => updateModal.classList.remove('open'));
+updateModal.addEventListener('click', (e) => { if(e.target === updateModal) updateModal.classList.remove('open'); });
+
+// ---- initial boot: render fallback immediately, then try to go live ----
+populatePeriodValues();
+renderAll();
+setStatus();
+refreshData(false);
+
+// ==================================================================
+// Projects & Designer Utilization (static data pulled from the
+// P&L ELEKEN sheet — not part of the live-refresh flow above)
+// ==================================================================
+let labels33 = FULL_MONTH_KEYS.slice(0, 33).map(monthDisplay);
+let labels32 = FULL_MONTH_KEYS.slice(0, 32).map(monthDisplay);
+
+let projectCountRaw = [29,29.5,31,30,33,36.5,38.5,38.5,39,40.5,39,39,38.5,44.5,46,49.5,45.5,43,43.5,43.5,44.5,47.5,51,47.5,46,54,57.5,58.5,55,61,54,51.5,47];
+let designTeamRaw   = [37,37,36,36,35,36,43,47,48,49,50,47,49,49,49,54,55,54,54,55,55,57,57,63,67,70,72,71,69,69,68,62,65];
+let qttFullTimeRaw  = [28,28,28,26,29,31,33,34,36,37,35,36,36,41,42,46,41,37,36,35,36,36,41,39,38,43,46,46,46,54,48,45];
+let qttPartTimeRaw  = [2,3,6,8,8,11,11,9,6,7,8,6,5,7,8,7,9,12,15,17,17,23,20,17,16,22,23,25,18,14,12,13];
+let revPerDesignerRaw = [3935,4002,3791,4380,4006,3910,4045,3552,3702,3804,3422,3438,2781,3741,4423,4304,3894,3641,3728,3608,3685,4495,3959,3602,3393,3754,4175,4200,4251,4771,4179,4158,4378];
+let revPerProjectRaw  = [5021,5020,4402,5255,4249,3857,4517,4336,4556,4603,4387,4144,3539,4120,4711,4696,4707,4572,4627,4562,4554,5394,4424,4778,4942,4866,5228,5098,5333,5397,5262,5006,6055];
+let utilizationRaw    = [78,80,86,83,94,101,90,82,81,83,78,83,79,91,94,92,83,80,81,79,81,83,89,75,69,77,80,82,80,88,79,83,72];
+
+let pdCharts = {};
+function simpleLine(canvasId, labels, series){
+  if(pdCharts[canvasId]) pdCharts[canvasId].destroy();
+  const chart = new Chart(document.getElementById(canvasId), {
+    type:'line',
+    data:{ labels, datasets: series },
+    options: baseOptions({
+      plugins: series.length > 1
+        ? { legend:{ labels:{ color:'#E7ECF2', usePointStyle:true, boxWidth:8, font:{size:12} } }, tooltip: baseOptions().plugins.tooltip }
+        : { legend:{display:false}, tooltip: baseOptions().plugins.tooltip },
+      scales:{
+        x:{ grid:gridStyle, ticks:tickStyle },
+        y:{ grid:gridStyle, ticks:tickStyle }
+      }
+    })
+  });
+  pdCharts[canvasId] = chart;
+  return chart;
+}
+
+function kpiCard(container, label, value, sub){
+  const el = document.createElement('div');
+  el.className='kpi';
+  el.innerHTML = `<div class="label">${label}</div><div class="value">${value}</div><div class="delta flat">${sub}</div>`;
+  container.appendChild(el);
+}
+
+function renderProjectsSection(){
+  const lbl = FULL_MONTH_KEYS.slice(0, projectCountRaw.length).map(monthDisplay);
+  const lblRev = FULL_MONTH_KEYS.slice(0, revPerProjectRaw.length).map(monthDisplay);
+  const last = projectCountRaw.length - 1;
+  const kpiRow = document.getElementById('projectKpiRow');
+  kpiRow.innerHTML = '';
+  kpiCard(kpiRow, `Active projects, ${lbl[last]}`, projectCountRaw[last], `Peak: ${Math.max(...projectCountRaw)}`);
+  kpiCard(kpiRow, `Revenue per project, ${lblRev[lblRev.length-1]}`, '$'+fmt(revPerProjectRaw[revPerProjectRaw.length-1]), `All-time avg: $${fmt(revPerProjectRaw.reduce((a,b)=>a+b,0)/revPerProjectRaw.length)}`);
+
+  simpleLine('chartProjectCount', lbl, [
+    { label:'Active projects', data:projectCountRaw, borderColor:'#6FA8DC', backgroundColor:'#6FA8DC22', fill:true, tension:.3, pointRadius:0, borderWidth:2.5 }
+  ]);
+  simpleLine('chartRevPerProject', lblRev, [
+    { label:'Revenue per project', data:revPerProjectRaw, borderColor:'#5FB88C', backgroundColor:'#5FB88C22', fill:true, tension:.3, pointRadius:0, borderWidth:2.5 }
+  ]);
+}
+
+function renderDesignersSection(){
+  const lblTeam = FULL_MONTH_KEYS.slice(0, designTeamRaw.length).map(monthDisplay);
+  const lblQtt = FULL_MONTH_KEYS.slice(0, qttFullTimeRaw.length).map(monthDisplay);
+  const lblUtil = FULL_MONTH_KEYS.slice(0, utilizationRaw.length).map(monthDisplay);
+  const lblRevD = FULL_MONTH_KEYS.slice(0, revPerDesignerRaw.length).map(monthDisplay);
+  const last = designTeamRaw.length - 1;
+  const lastQtt = qttFullTimeRaw.length - 1;
+  const kpiRow = document.getElementById('designerKpiRow');
+  kpiRow.innerHTML = '';
+  kpiCard(kpiRow, `Design team, ${lblTeam[last]}`, designTeamRaw[last], `Peak: ${Math.max(...designTeamRaw)}`);
+  kpiCard(kpiRow, `Utilization, ${lblUtil[lblUtil.length-1]}`, utilizationRaw[utilizationRaw.length-1]+'%', `All-time avg: ${Math.round(utilizationRaw.reduce((a,b)=>a+b,0)/utilizationRaw.length)}%`);
+  kpiCard(kpiRow, `Full-time, ${lblQtt[lastQtt]}`, qttFullTimeRaw[lastQtt], `Part-time: ${qttPartTimeRaw[lastQtt]}`);
+
+  const teamLen = Math.min(designTeamRaw.length, qttFullTimeRaw.length);
+  simpleLine('chartTeamMix', lblQtt.slice(0, teamLen), [
+    { label:'Design team (total)', data:designTeamRaw.slice(0, teamLen), borderColor:'#E7ECF2', backgroundColor:'transparent', tension:.3, pointRadius:0, borderWidth:2.5 },
+    { label:'Full-time', data:qttFullTimeRaw.slice(0, teamLen), borderColor:'#5FB88C', backgroundColor:'#5FB88C22', fill:true, tension:.3, pointRadius:0, borderWidth:2 },
+    { label:'Part-time', data:qttPartTimeRaw.slice(0, teamLen), borderColor:'#D6A544', backgroundColor:'#D6A54422', fill:true, tension:.3, pointRadius:0, borderWidth:2 }
+  ]);
+  simpleLine('chartUtilization', lblUtil, [
+    { label:'Utilization, %', data:utilizationRaw, borderColor:'#C96A5B', backgroundColor:'#C96A5B22', fill:true, tension:.3, pointRadius:0, borderWidth:2.5 }
+  ]);
+  simpleLine('chartRevPerDesigner', lblRevD, [
+    { label:'Revenue per designer', data:revPerDesignerRaw, borderColor:'#B98FD0', backgroundColor:'#B98FD022', fill:true, tension:.3, pointRadius:0, borderWidth:2.5 }
+  ]);
+}
+
+renderProjectsSection();
+renderDesignersSection();
+</script>
+</body>
+</html>
