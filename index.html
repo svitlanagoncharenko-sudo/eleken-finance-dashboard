@@ -748,108 +748,18 @@ function recomputeTotalExpenses(){
 }
 recomputeTotalExpenses();
 
-// ---- JSONP loader for the Google Visualization API (no CORS issues) ----
-function loadGviz(gid){
-  return new Promise((resolve, reject) => {
-    const cbName = 'gvizCB_' + gid + '_' + Math.floor(Math.random()*1e9);
-    const timeout = setTimeout(() => { cleanup(); reject(new Error('Timed out')); }, 12000);
-    function cleanup(){
-      clearTimeout(timeout);
-      delete window[cbName];
-      if(script.parentNode) script.parentNode.removeChild(script);
-    }
-    window[cbName] = (json) => { cleanup(); resolve(json); };
-    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?gid=${gid}&tqx=out:json;responseHandler=${cbName}`;
-    const script = document.createElement('script');
-    script.src = url;
-    script.onerror = () => { cleanup(); reject(new Error('Sheet not reachable — check sharing settings')); };
-    document.body.appendChild(script);
-  });
-}
-
-function findRow(rows, label){
-  const target = label.trim().toLowerCase();
-  for(const row of rows){
-    if(!row.c) continue;
-    for(const cell of row.c){
-      if(cell && typeof cell.v === 'string' && cell.v.trim().toLowerCase() === target){
-        return row;
-      }
-    }
-  }
-  return null;
-}
-
-function extractSeries(rows, label, count){
-  const row = findRow(rows, label);
-  if(!row) return null;
-  const idx = row.c.findIndex(c => c && typeof c.v === 'string' && c.v.trim().toLowerCase() === label.trim().toLowerCase());
-  const values = [];
-  for(let i = idx + 1; values.length < count && i < row.c.length; i++){
-    const cell = row.c[i];
-    const v = (cell && typeof cell.v === 'number') ? cell.v : 0;
-    values.push(v);
-  }
-  while(values.length < count) values.push(0);
-  return values;
-}
-
+// ---- Fetch live data via our own secure serverless endpoint ----
+// The sheet itself stays private: /api/sheet-data holds the Google service
+// account credentials server-side (as a Vercel environment variable) and
+// does all the reading there. The browser only ever talks to our own domain.
 async function fetchLiveData(){
-  const json = await loadGviz(SHEET_GID);
-  const rows = json.table.rows;
-
-  const series = {
-    revenue: extractSeries(rows, 'Revenue Total', 36),
-    netIncome: extractSeries(rows, 'Net income', 36),
-    cogs: extractSeries(rows, 'COGS', 36),
-    marketing: extractSeries(rows, 'Marketing costs', 36),
-    sales: extractSeries(rows, 'Sales costs', 36),
-    outbound: extractSeries(rows, 'Outbound Sales costs', 36),
-    finance: extractSeries(rows, 'Finance costs', 36),
-    hr: extractSeries(rows, 'HR costs', 36),
-    otherAdmin: extractSeries(rows, 'Other administrative costs', 36)
-  };
-
-  for(const k in series){
-    if(!series[k]) throw new Error(`Could not find the "${k}" row in the sheet`);
+  const res = await fetch('/api/sheet-data');
+  let payload;
+  try { payload = await res.json(); } catch(e) { payload = null; }
+  if(!res.ok){
+    throw new Error((payload && payload.error) || `Server responded ${res.status}`);
   }
-
-  // Trim trailing months with no revenue yet (unreported future months)
-  let len = 36;
-  while(len > 1 && !series.revenue[len-1]) len--;
-
-  // ---- Projects & Designer Utilization rows (same sheet, graceful if missing) ----
-  function trimmedOrNull(label){
-    const arr = extractSeries(rows, label, 36);
-    if(!arr) return null;
-    let l = 36;
-    while(l > 1 && !arr[l-1]) l--;
-    return arr.slice(0, l);
-  }
-
-  return {
-    monthKeys: FULL_MONTH_KEYS.slice(0, len),
-    revenue: series.revenue.slice(0, len),
-    netIncome: series.netIncome.slice(0, len),
-    cogs: series.cogs.slice(0, len),
-    expenseCategories: {
-      "Marketing": series.marketing.slice(0, len),
-      "Sales": series.sales.slice(0, len),
-      "Outbound Sales": series.outbound.slice(0, len),
-      "Finance": series.finance.slice(0, len),
-      "HR": series.hr.slice(0, len),
-      "Other admin": series.otherAdmin.slice(0, len)
-    },
-    projectDesigner: {
-      projectCount: trimmedOrNull('Project count'),
-      designTeam: trimmedOrNull('Design team'),
-      qttFullTime: trimmedOrNull('QTT full-time'),
-      qttPartTime: trimmedOrNull('QTT part-time'),
-      revPerDesigner: trimmedOrNull('Revenue per designer'),
-      revPerProject: trimmedOrNull('Revenue par project') || trimmedOrNull('Revenue per project'),
-      utilization: trimmedOrNull('Designer Utilization, %')
-    }
-  };
+  return payload;
 }
 
 // ==================================================================
