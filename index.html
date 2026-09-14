@@ -489,15 +489,17 @@
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 17V9M9.5 17V4M16 17v-6"/></svg>
         Financial Metrics
       </button>
+      <button data-section="planning">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 10h12M4 14h8M4 6h12" stroke-linecap="round"/></svg>
+        Finance Planning
+      </button>
       <button data-section="projects">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="14" height="12" rx="1.5"/><path d="M3 8h14"/></svg>
         Projects
-        <span class="badge">SOON</span>
       </button>
       <button data-section="designers">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="7" r="3"/><path d="M4 17c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
         Designer Utilization
-        <span class="badge">SOON</span>
       </button>
     </nav>
   </aside>
@@ -546,7 +548,6 @@
           <button data-view="expenses">Expenses by Category</button>
           <button data-view="structure">Expense Structure</button>
           <button data-view="keymetrics">Key Metrics</button>
-          <button data-view="forecast">Forecast</button>
         </nav>
 
         <div class="view active" id="view-overview">
@@ -630,32 +631,45 @@
           </div>
         </div>
 
-        <div class="view" id="view-forecast">
-          <div class="panel">
-            <h2>September &amp; October 2026 — Cash Plans</h2>
-            <p class="sub">Income: Budget vs current Forecast, from CF_2026_Forecast</p>
-            <div class="kpis" id="forecastHighlight" style="margin-bottom:0;"></div>
-          </div>
+      </section>
 
-          <div class="panel">
-            <h2>Income: Budget vs Forecast, 2026</h2>
-            <p class="sub">All months, $</p>
-            <div class="chart-box tall"><canvas id="chartForecast"></canvas></div>
-            <div class="note">June 2026 forecast shows a formula error (#REF!) in the source sheet — that month is left blank here rather than shown as zero.</div>
+      <!-- ============================================================ -->
+      <!-- SECTION: Finance Planning                                     -->
+      <!-- ============================================================ -->
+      <section class="app-section" id="section-planning">
+        <header>
+          <div class="title-block">
+            <h1>Finance Planning</h1>
+            <p>Cash income: Budget vs Forecast, 2026</p>
           </div>
+          <div class="meta-block">
+            <div class="meta">Source: CF_2026_Forecast</div>
+          </div>
+        </header>
 
-          <div class="panel">
-            <h2>Month-by-Month Breakdown</h2>
-            <p class="sub">Income Budget vs Forecast, 2026</p>
-            <table class="breakdown-table" id="forecastTable">
-              <thead>
-                <tr><th>Month</th><th>Budget, $</th><th>Forecast, $</th><th>Variance, $</th><th>% of budget</th></tr>
-              </thead>
-              <tbody id="forecastTableBody"></tbody>
-            </table>
-          </div>
+        <div class="panel">
+          <h2>September &amp; October 2026 — Cash Plans</h2>
+          <p class="sub">Income: Budget vs current Forecast</p>
+          <div class="kpis" id="forecastHighlight" style="margin-bottom:0;"></div>
         </div>
 
+        <div class="panel">
+          <h2>Income: Budget vs Forecast, 2026</h2>
+          <p class="sub">All months, $</p>
+          <div class="chart-box tall"><canvas id="chartForecast"></canvas></div>
+          <div class="note">June 2026 forecast shows a formula error (#REF!) in the source sheet — that month is left blank here rather than shown as zero.</div>
+        </div>
+
+        <div class="panel">
+          <h2>Month-by-Month Breakdown</h2>
+          <p class="sub">Income Budget vs Forecast, 2026</p>
+          <table class="breakdown-table" id="forecastTable">
+            <thead>
+              <tr><th>Month</th><th>Budget, $</th><th>Forecast, $</th><th>Variance, $</th><th>% of budget</th></tr>
+            </thead>
+            <tbody id="forecastTableBody"></tbody>
+          </table>
+        </div>
       </section>
 
       <!-- ============================================================ -->
