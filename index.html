@@ -546,6 +546,7 @@
           <button data-view="expenses">Expenses by Category</button>
           <button data-view="structure">Expense Structure</button>
           <button data-view="keymetrics">Key Metrics</button>
+          <button data-view="forecast">Forecast</button>
         </nav>
 
         <div class="view active" id="view-overview">
@@ -626,6 +627,32 @@
             <p class="sub">Month-over-month % change in revenue</p>
             <div class="chart-box tall"><canvas id="chartRevGrowth"></canvas></div>
             <div class="note">Net Operating Income is approximated as Net income (no separate "Operating Income" line exists in the sheet, and all listed cost categories are operating costs).</div>
+          </div>
+        </div>
+
+        <div class="view" id="view-forecast">
+          <div class="panel">
+            <h2>September &amp; October 2026 — Cash Plans</h2>
+            <p class="sub">Income: Budget vs current Forecast, from CF_2026_Forecast</p>
+            <div class="kpis" id="forecastHighlight" style="margin-bottom:0;"></div>
+          </div>
+
+          <div class="panel">
+            <h2>Income: Budget vs Forecast, 2026</h2>
+            <p class="sub">All months, $</p>
+            <div class="chart-box tall"><canvas id="chartForecast"></canvas></div>
+            <div class="note">June 2026 forecast shows a formula error (#REF!) in the source sheet — that month is left blank here rather than shown as zero.</div>
+          </div>
+
+          <div class="panel">
+            <h2>Month-by-Month Breakdown</h2>
+            <p class="sub">Income Budget vs Forecast, 2026</p>
+            <table class="breakdown-table" id="forecastTable">
+              <thead>
+                <tr><th>Month</th><th>Budget, $</th><th>Forecast, $</th><th>Variance, $</th><th>% of budget</th></tr>
+              </thead>
+              <tbody id="forecastTableBody"></tbody>
+            </table>
           </div>
         </div>
 
@@ -1520,8 +1547,84 @@ function renderDesignersSection(){
   ]);
 }
 
+// ==================================================================
+// Forecast (from CF_2026_Forecast / "CASH FLOW Fact/Forecast_VS_Budget")
+// Static snapshot for now — Income: Budget vs Forecast, 2026.
+// ==================================================================
+const forecast2026 = [
+  { m:'Jan', budget:234154, forecast:235376 },
+  { m:'Feb', budget:251371, forecast:315108 },
+  { m:'Mar', budget:268588, forecast:344635 },
+  { m:'Apr', budget:285806, forecast:296701 },
+  { m:'May', budget:303023, forecast:318299 },
+  { m:'Jun', budget:320240, forecast:null }, // #REF! error in source sheet
+  { m:'Jul', budget:337457, forecast:251528 },
+  { m:'Aug', budget:354674, forecast:48988 },
+  { m:'Sep', budget:371892, forecast:220000 },
+  { m:'Oct', budget:389109, forecast:240000 },
+  { m:'Nov', budget:406326, forecast:202000 },
+  { m:'Dec', budget:423543, forecast:202000 },
+];
+
+let forecastChart = null;
+function renderForecastSection(){
+  const highlight = document.getElementById('forecastHighlight');
+  highlight.innerHTML = '';
+  ['Sep','Oct'].forEach(mKey=>{
+    const row = forecast2026.find(r=>r.m===mKey);
+    const variance = row.forecast - row.budget;
+    const pct = row.forecast / row.budget * 100;
+    const monthName = mKey === 'Sep' ? 'September 2026' : 'October 2026';
+    const el = document.createElement('div');
+    el.className='kpi';
+    el.innerHTML = `<div class="label">${monthName} — Budget</div><div class="value">$${fmt(row.budget)}</div><div class="delta flat">Planned income</div>`;
+    highlight.appendChild(el);
+    const el2 = document.createElement('div');
+    el2.className='kpi';
+    const cls = pct>=100 ? 'up' : 'down';
+    el2.innerHTML = `<div class="label">${monthName} — Forecast</div><div class="value">$${fmt(row.forecast)}</div><div class="delta ${cls}">${pct.toFixed(0)}% of budget (${variance>=0?'+':''}$${fmt(variance)})</div>`;
+    highlight.appendChild(el2);
+  });
+
+  if(forecastChart) forecastChart.destroy();
+  forecastChart = new Chart(document.getElementById('chartForecast'), {
+    type:'bar',
+    data:{
+      labels: forecast2026.map(r=>r.m+" '26"),
+      datasets:[
+        { label:'Budget', data: forecast2026.map(r=>r.budget), backgroundColor:'#5FB88C55', borderColor:'#5FB88C', borderWidth:1.5, borderRadius:2, maxBarThickness:26 },
+        { label:'Forecast', data: forecast2026.map(r=>r.forecast), backgroundColor:'#6FA8DC', borderRadius:2, maxBarThickness:26 }
+      ]
+    },
+    options: baseOptions({
+      scales:{
+        x:{ grid:gridStyle, ticks:tickStyle },
+        y:{ grid:gridStyle, ticks:Object.assign({}, tickStyle, { callback:v=>'$'+fmtK(v) }) }
+      }
+    })
+  });
+
+  const body = document.getElementById('forecastTableBody');
+  body.innerHTML = forecast2026.map(r=>{
+    if(r.forecast === null){
+      return `<tr><td>${r.m} '26</td><td>$${fmt(r.budget)}</td><td colspan="3" style="color:var(--muted)">Data error in source sheet (#REF!)</td></tr>`;
+    }
+    const variance = r.forecast - r.budget;
+    const pct = r.forecast / r.budget * 100;
+    const color = pct>=100 ? 'var(--good)' : 'var(--bad)';
+    return `<tr>
+      <td>${r.m} '26</td>
+      <td>$${fmt(r.budget)}</td>
+      <td>$${fmt(r.forecast)}</td>
+      <td style="color:${color}">${variance>=0?'+':''}$${fmt(variance)}</td>
+      <td style="color:${color}">${pct.toFixed(0)}%</td>
+    </tr>`;
+  }).join('');
+}
+
 renderProjectsSection();
 renderDesignersSection();
+renderForecastSection();
 </script>
 </body>
 </html>
