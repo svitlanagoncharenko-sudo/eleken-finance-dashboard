@@ -109,6 +109,13 @@ export default async function handler(req, res) {
     const trimmed = {};
     for (const k in pd) trimmed[k] = pd[k] ? trimTrailingZero(pd[k]) : null;
 
+    const adv = {
+      ebitda: extractSeries(grid, 'Adjusted EBITDA', 36),
+      ebitdaMargin: extractSeries(grid, 'Adjusted EBITDA Margin, %', 36),
+    };
+    const advTrimmed = {};
+    for (const k in adv) advTrimmed[k] = adv[k] ? trimTrailingZero(adv[k]) : null;
+
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
     res.status(200).json({
       monthKeys: FULL_MONTH_KEYS.slice(0, len),
@@ -124,6 +131,7 @@ export default async function handler(req, res) {
         'Other admin': series.otherAdmin.slice(0, len),
       },
       projectDesigner: trimmed,
+      advanced: advTrimmed,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

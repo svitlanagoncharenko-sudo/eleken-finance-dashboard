@@ -545,6 +545,7 @@
           <button data-view="profit">Profit</button>
           <button data-view="expenses">Expenses by Category</button>
           <button data-view="structure">Expense Structure</button>
+          <button data-view="keymetrics">Key Metrics</button>
         </nav>
 
         <div class="view active" id="view-overview">
@@ -605,6 +606,29 @@
           </div>
         </div>
 
+        <div class="view" id="view-keymetrics">
+          <div class="kpis" id="keyMetricsKpiRow"></div>
+
+          <div class="panel">
+            <h2>EBITDA (Adjusted), $</h2>
+            <p class="sub" id="subEbitda">From the sheet's "Adjusted EBITDA" line, per month</p>
+            <div class="chart-box tall"><canvas id="chartEbitda"></canvas></div>
+          </div>
+
+          <div class="panel">
+            <h2>Margin Comparison: GPM vs EBITDA % vs NPM</h2>
+            <p class="sub">Gross Profit Margin, EBITDA Margin and Net Profit Margin side by side, %</p>
+            <div class="chart-box tall"><canvas id="chartMarginCompare"></canvas></div>
+          </div>
+
+          <div class="panel">
+            <h2>Revenue Growth (MoM delta), %</h2>
+            <p class="sub">Month-over-month % change in revenue</p>
+            <div class="chart-box tall"><canvas id="chartRevGrowth"></canvas></div>
+            <div class="note">Net Operating Income is approximated as Net income (no separate "Operating Income" line exists in the sheet, and all listed cost categories are operating costs).</div>
+          </div>
+        </div>
+
       </section>
 
       <!-- ============================================================ -->
@@ -657,6 +681,12 @@
           <h2>Revenue per Designer, $</h2>
           <p class="sub">Average monthly revenue generated per designer</p>
           <div class="chart-box tall"><canvas id="chartRevPerDesigner"></canvas></div>
+        </div>
+        <div class="panel">
+          <h2>Overhead per FTE, $ (estimated)</h2>
+          <p class="sub">(Finance costs + Other admin costs) / Design team size</p>
+          <div class="chart-box tall"><canvas id="chartOverheadFte"></canvas></div>
+          <div class="note">Estimate — there's no dedicated "FTE" tracking row in the sheet, so Design team size is used as the FTE count.</div>
         </div>
       </section>
 
@@ -728,7 +758,9 @@ const fallback = {
     "Finance": [1954,2066,1968,1930,1932,2147,2168,5491,2200,2172,2569,2269,2512,2512,2550,3256,2700,2736,2736,2761,8576,5844,7192,5676,4253,4231,4176,4220,4199,4210,4530,4575,4540],
     "HR": [2583,1750,3869,1815,3701,5041,4240,3623,9292,5244,4375,7002,7687,5579,6331,12962,10683,6950,10254,7986,11532,9477,14544,17290,15302,12730,11720,10485,10218,9508,15177,10584,10278],
     "Other admin": [2826,4204,4873,4578,8382,2247,4171,4841,3683,3911,3852,3632,5739,6409,5548,12023,13576,8365,10225,7384,7587,12984,18350,5977,5626,4869,5106,5914,7957,6434,11687,6368,7725]
-  }
+  },
+  ebitda: [49542,31782,35430,45633,33893,39674,59502,51446,56757,69445,48901,34837,-1765,35235,68763,78024,57187,34516,45626,36791,42441,81198,22432,53240,28578,69284,112858,114020,128423,161475,109138,94019,138339],
+  ebitdaMargin: [34,21,26,29,24,28,34,31,32,37,29,22,-1,19,32,33,27,17,22,18,21,31,10,23,12,26,36,36,42,46,36,34,45]
 };
 
 // ---- Mutable "live" state, active dataset the whole app renders from ----
@@ -737,6 +769,8 @@ let revenueRaw = fallback.revenue.slice();
 let netIncomeRaw = fallback.netIncome.slice();
 let cogsRaw = fallback.cogs.slice();
 let expenseCategoriesRaw = JSON.parse(JSON.stringify(fallback.expenseCategories));
+let ebitdaRaw = fallback.ebitda.slice();
+let ebitdaMarginRaw = fallback.ebitdaMargin.slice();
 let totalExpensesRaw = [];
 let dataSource = 'fallback'; // 'live' | 'fallback'
 let lastFetchTime = null;
@@ -793,6 +827,7 @@ function aggregate(period){
       netIncome: netIncomeRaw.slice(),
       totalExpenses: totalExpensesRaw.slice(),
       cogs: cogsRaw.slice(),
+      ebitda: ebitdaRaw.slice(),
       expenseCategories: Object.fromEntries(Object.entries(expenseCategoriesRaw).map(([k,v])=>[k,v.slice()])),
       yoyOffset: 12
     };
@@ -815,6 +850,7 @@ function aggregate(period){
     netIncome: sumFor(netIncomeRaw),
     totalExpenses: sumFor(totalExpensesRaw),
     cogs: sumFor(cogsRaw),
+    ebitda: sumFor(ebitdaRaw),
     expenseCategories,
     yoyOffset: period === 'quarter' ? 4 : 1
   };
@@ -850,7 +886,7 @@ function baseOptions(extra){
   }, extra);
 }
 
-let charts = { overview:null, margin:null, profit:null, single:null, structure:null, mini:[] };
+let charts = { overview:null, margin:null, profit:null, single:null, structure:null, ebitda:null, marginCompare:null, revGrowth:null, mini:[] };
 let currentPeriod = 'month';
 let currentData = aggregate('month');
 let currentCat = Object.keys(expenseCategoriesRaw)[0];
@@ -961,7 +997,7 @@ function renderKPIs(){
 }
 
 function destroyCharts(){
-  [charts.overview, charts.margin, charts.profit, charts.single, charts.structure, ...charts.mini].forEach(c => c && c.destroy());
+  [charts.overview, charts.margin, charts.profit, charts.single, charts.structure, charts.ebitda, charts.marginCompare, charts.revGrowth, ...charts.mini].forEach(c => c && c.destroy());
   charts.mini = [];
 }
 
@@ -1151,6 +1187,77 @@ function renderMiniGrid(){
   });
 }
 
+function renderKeyMetrics(){
+  const d = currentData;
+  const s = getStats(selectedIdx);
+
+  const gpmSeries = d.labels.map((_, i) => d.revenue[i] ? +((d.revenue[i]-d.cogs[i])/d.revenue[i]*100).toFixed(1) : 0);
+  const npmSeries = d.labels.map((_, i) => d.revenue[i] ? +(d.netIncome[i]/d.revenue[i]*100).toFixed(1) : 0);
+  const ebitdaMarginSeries = d.labels.map((_, i) => d.revenue[i] ? +(d.ebitda[i]/d.revenue[i]*100).toFixed(1) : 0);
+  const growthSeries = d.labels.map((_, i) => (i===0 || !d.revenue[i-1]) ? null : +((d.revenue[i]/d.revenue[i-1]-1)*100).toFixed(1));
+
+  // KPI row for the selected period
+  const sGpm = s.revenue ? (s.revenue - s.cogs) / s.revenue * 100 : 0;
+  const sNpm = s.revenue ? s.netIncome / s.revenue * 100 : 0;
+  const sEbitda = (selectedIdx === 'all') ? d.ebitda.reduce((a,b)=>a+b,0) : d.ebitda[selectedIdx];
+  const sEbitdaMargin = s.revenue ? sEbitda / s.revenue * 100 : 0;
+  const idx = selectedIdx === 'all' ? d.labels.length - 1 : selectedIdx;
+  const sGrowth = growthSeries[idx];
+
+  const kpiRow = document.getElementById('keyMetricsKpiRow');
+  kpiRow.innerHTML = '';
+  [
+    [`EBITDA, ${s.label}`, '$'+fmt(sEbitda)],
+    [`EBITDA margin, ${s.label}`, sEbitdaMargin.toFixed(0)+'%'],
+    [`GPM, ${s.label}`, sGpm.toFixed(0)+'%'],
+    [`NPM, ${s.label}`, sNpm.toFixed(0)+'%'],
+    [`Net Operating Income, ${s.label}`, '$'+fmt(s.netIncome)],
+    [`Revenue growth MoM, ${s.label}`, (sGrowth===null||sGrowth===undefined) ? '—' : (sGrowth>=0?'+':'')+sGrowth+'%']
+  ].forEach(([label, value])=>{
+    const el = document.createElement('div');
+    el.className='kpi';
+    el.innerHTML = `<div class="label">${label}</div><div class="value">${value}</div>`;
+    kpiRow.appendChild(el);
+  });
+
+  const n = d.labels.length;
+  const radii = Array(n).fill(0); if(selectedIdx !== 'all') radii[selectedIdx] = 5;
+
+  charts.ebitda = new Chart(document.getElementById('chartEbitda'), {
+    type:'line',
+    data:{ labels: d.labels, datasets:[
+      { label:'Adjusted EBITDA', data:d.ebitda, borderColor:'#B98FD0', backgroundColor:'#B98FD022', fill:true, tension:.3, pointRadius:radii, pointBackgroundColor:'#B98FD0', pointBorderColor:'#0D1116', pointBorderWidth:2, borderWidth:2.5 }
+    ]},
+    options: baseOptions({
+      plugins:{ legend:{display:false}, tooltip: baseOptions().plugins.tooltip },
+      scales:{ x:{ grid:gridStyle, ticks:tickStyle }, y:{ grid:gridStyle, ticks:Object.assign({}, tickStyle, { callback:v=>'$'+fmtK(v) }) } }
+    })
+  });
+
+  charts.marginCompare = new Chart(document.getElementById('chartMarginCompare'), {
+    type:'line',
+    data:{ labels: d.labels, datasets:[
+      { label:'GPM, %', data:gpmSeries, borderColor:'#5FB88C', backgroundColor:'transparent', tension:.3, pointRadius:0, borderWidth:2.5 },
+      { label:'EBITDA margin, %', data:ebitdaMarginSeries, borderColor:'#B98FD0', backgroundColor:'transparent', tension:.3, pointRadius:0, borderWidth:2.5 },
+      { label:'NPM, %', data:npmSeries, borderColor:'#6FA8DC', backgroundColor:'transparent', tension:.3, pointRadius:0, borderWidth:2.5 }
+    ]},
+    options: baseOptions({
+      scales:{ x:{ grid:gridStyle, ticks:tickStyle }, y:{ grid:gridStyle, ticks:Object.assign({}, tickStyle, { callback:v=>v+'%' }) } }
+    })
+  });
+
+  charts.revGrowth = new Chart(document.getElementById('chartRevGrowth'), {
+    type:'bar',
+    data:{ labels: d.labels, datasets:[
+      { label:'Revenue growth, MoM %', data:growthSeries, backgroundColor: growthSeries.map(v => v===null ? 'transparent' : (v>=0 ? '#5FB88C' : '#C96A5B')), borderRadius:2, maxBarThickness:28 }
+    ]},
+    options: baseOptions({
+      plugins:{ legend:{display:false}, tooltip: baseOptions().plugins.tooltip },
+      scales:{ x:{ grid:gridStyle, ticks:tickStyle }, y:{ grid:gridStyle, ticks:Object.assign({}, tickStyle, { callback:v=>v+'%' }) } }
+    })
+  });
+}
+
 function renderAll(){
   destroyCharts();
   renderKPIs();
@@ -1160,6 +1267,7 @@ function renderAll(){
   renderSingleExpense();
   renderMiniGrid();
   renderStructure();
+  renderKeyMetrics();
 }
 
 // ---- category selector (built once, rebuilt if category set changes) ----
@@ -1240,6 +1348,8 @@ async function refreshData(showModal){
     netIncomeRaw = live.netIncome;
     cogsRaw = live.cogs;
     expenseCategoriesRaw = live.expenseCategories;
+    if(live.advanced && live.advanced.ebitda) ebitdaRaw = live.advanced.ebitda;
+    if(live.advanced && live.advanced.ebitdaMargin) ebitdaMarginRaw = live.advanced.ebitdaMargin;
     recomputeTotalExpenses();
     dataSource = 'live';
     lastFetchTime = new Date();
@@ -1364,10 +1474,24 @@ function renderDesignersSection(){
   const lblRevD = FULL_MONTH_KEYS.slice(0, revPerDesignerRaw.length).map(monthDisplay);
   const last = designTeamRaw.length - 1;
   const lastQtt = qttFullTimeRaw.length - 1;
+  const lastUtilIdx = utilizationRaw.length - 1;
+
+  // ---- Estimated workforce metrics (approximations, clearly labelled) ----
+  const billability = utilizationRaw[lastUtilIdx]; // Billability = Utilization
+  const benchPct = 100 - billability;
+  const overheadCostLast = (expenseCategoriesRaw['Finance'] ? expenseCategoriesRaw['Finance'][expenseCategoriesRaw['Finance'].length-1] : 0)
+                          + (expenseCategoriesRaw['Other admin'] ? expenseCategoriesRaw['Other admin'][expenseCategoriesRaw['Other admin'].length-1] : 0);
+  const overheadPerFte = designTeamRaw[last] ? overheadCostLast / designTeamRaw[last] : 0;
+  const cogsLast = cogsRaw[cogsRaw.length-1] || 0;
+  const benchCost = billability ? cogsLast * (benchPct / billability) : 0;
+
   const kpiRow = document.getElementById('designerKpiRow');
   kpiRow.innerHTML = '';
   kpiCard(kpiRow, `Design team, ${lblTeam[last]}`, designTeamRaw[last], `Peak: ${Math.max(...designTeamRaw)}`);
-  kpiCard(kpiRow, `Utilization, ${lblUtil[lblUtil.length-1]}`, utilizationRaw[utilizationRaw.length-1]+'%', `All-time avg: ${Math.round(utilizationRaw.reduce((a,b)=>a+b,0)/utilizationRaw.length)}%`);
+  kpiCard(kpiRow, `Billability, ${lblUtil[lastUtilIdx]}`, billability+'%', `= Designer Utilization`);
+  kpiCard(kpiRow, `Bench %, ${lblUtil[lastUtilIdx]}`, benchPct.toFixed(0)+'%', `Estimated (100% − Billability)`);
+  kpiCard(kpiRow, `Bench cost (est.), ${lblUtil[lastUtilIdx]}`, '$'+fmt(benchCost), `Estimated from COGS × bench ratio`);
+  kpiCard(kpiRow, `Overhead / FTE, ${lblTeam[last]}`, '$'+fmt(overheadPerFte), `(Finance + Other admin) / Design team`);
   kpiCard(kpiRow, `Full-time, ${lblQtt[lastQtt]}`, qttFullTimeRaw[lastQtt], `Part-time: ${qttPartTimeRaw[lastQtt]}`);
 
   const teamLen = Math.min(designTeamRaw.length, qttFullTimeRaw.length);
@@ -1377,10 +1501,22 @@ function renderDesignersSection(){
     { label:'Part-time', data:qttPartTimeRaw.slice(0, teamLen), borderColor:'#D6A544', backgroundColor:'#D6A54422', fill:true, tension:.3, pointRadius:0, borderWidth:2 }
   ]);
   simpleLine('chartUtilization', lblUtil, [
-    { label:'Utilization, %', data:utilizationRaw, borderColor:'#C96A5B', backgroundColor:'#C96A5B22', fill:true, tension:.3, pointRadius:0, borderWidth:2.5 }
+    { label:'Utilization / Billability, %', data:utilizationRaw, borderColor:'#C96A5B', backgroundColor:'#C96A5B22', fill:true, tension:.3, pointRadius:0, borderWidth:2.5 }
   ]);
   simpleLine('chartRevPerDesigner', lblRevD, [
     { label:'Revenue per designer', data:revPerDesignerRaw, borderColor:'#B98FD0', backgroundColor:'#B98FD022', fill:true, tension:.3, pointRadius:0, borderWidth:2.5 }
+  ]);
+
+  // Overhead per FTE trend (estimated), using the shorter of the two series lengths
+  const ohLen = Math.min(designTeamRaw.length, expenseCategoriesRaw['Finance'].length, expenseCategoriesRaw['Other admin'].length);
+  const ohLbl = FULL_MONTH_KEYS.slice(0, ohLen).map(monthDisplay);
+  const ohSeries = [];
+  for(let i=0;i<ohLen;i++){
+    const oh = (expenseCategoriesRaw['Finance'][i]||0) + (expenseCategoriesRaw['Other admin'][i]||0);
+    ohSeries.push(designTeamRaw[i] ? +(oh/designTeamRaw[i]).toFixed(0) : 0);
+  }
+  simpleLine('chartOverheadFte', ohLbl, [
+    { label:'Overhead per FTE, $', data:ohSeries, borderColor:'#D6A544', backgroundColor:'#D6A54422', fill:true, tension:.3, pointRadius:0, borderWidth:2.5 }
   ]);
 }
 
